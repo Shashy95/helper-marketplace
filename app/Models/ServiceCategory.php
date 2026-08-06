@@ -1,0 +1,16 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class ServiceCategory extends Model
+{
+    protected $fillable = ['name', 'slug'];
+
+    public function helperServices(): HasMany
+    {
+        return $this->hasMany(HelperService::class);
+    }
+}
