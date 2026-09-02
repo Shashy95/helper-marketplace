@@ -1,45 +1,45 @@
-<div class="max-w-4xl px-8 py-10 space-y-5">
-    <h1 class="font-bold text-2xl">Pending Verifications</h1>
+<div class="space-y-4">
+    <h1 class="text-xl font-semibold">Pending Verifications</h1>
 
     <div class="space-y-3">
         @forelse ($documents as $document)
-            <div class="bg-white border border-line rounded-lg p-4">
+            <div class="bg-white p-4 rounded border">
                 <div class="flex justify-between items-start">
                     <div>
-                        <p class="font-medium text-sm">
+                        <p class="font-medium">
                             {{ $document->helperProfile->user->name ?? 'Helper #' . $document->helper_profile_id }}
                         </p>
-                        <p class="text-xs text-muted mt-0.5">
-                            {{ $document->type }} · uploaded {{ $document->created_at->diffForHumans() }}
+                        <p class="text-sm text-gray-600">
+                            {{ $document->type }} — uploaded {{ $document->created_at->diffForHumans() }}
                         </p>
                         <a href="{{ route('admin.verifications.file', $document) }}"
-                           target="_blank" class="text-brand text-sm underline mt-1 inline-block">
+                           target="_blank" class="text-blue-600 text-sm underline">
                             View document
                         </a>
                     </div>
 
                     <div class="flex gap-2">
                         <button wire:click="approve({{ $document->id }})"
-                                class="bg-brand text-white px-3 py-1.5 rounded-md text-sm font-medium">
+                                class="bg-green-600 text-white px-3 py-1.5 rounded text-sm">
                             Approve
                         </button>
                         <button wire:click="startReject({{ $document->id }})"
-                                class="bg-white border border-red-300 text-red-600 px-3 py-1.5 rounded-md text-sm font-medium">
+                                class="bg-red-600 text-white px-3 py-1.5 rounded text-sm">
                             Reject
                         </button>
                     </div>
                 </div>
 
                 @if ($rejectingDocId === $document->id)
-                    <div class="mt-3 border-t border-line pt-3">
-                        <textarea wire:model="rejectionReason" class="w-full border border-line rounded-md p-2 text-sm"
+                    <div class="mt-3 border-t pt-3">
+                        <textarea wire:model="rejectionReason" class="w-full border rounded p-2 text-sm"
                                   placeholder="Reason for rejection" rows="2"></textarea>
                         @error('rejectionReason') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
-                        <div class="flex gap-3 mt-2 items-center">
-                            <button wire:click="confirmReject" class="bg-red-600 text-white px-3 py-1 rounded-md text-sm">
+                        <div class="flex gap-2 mt-2">
+                            <button wire:click="confirmReject" class="bg-red-600 text-white px-3 py-1 rounded text-sm">
                                 Confirm Reject
                             </button>
-                            <button wire:click="$set('rejectingDocId', null)" class="text-sm text-muted">
+                            <button wire:click="$set('rejectingDocId', null)" class="text-sm text-gray-600">
                                 Cancel
                             </button>
                         </div>
@@ -47,9 +47,7 @@
                 @endif
             </div>
         @empty
-            <div class="bg-white border border-line rounded-lg p-6 text-center text-muted text-sm">
-                Nothing pending review.
-            </div>
+            <p class="text-gray-600">Nothing pending review.</p>
         @endforelse
 
         {{ $documents->links() }}

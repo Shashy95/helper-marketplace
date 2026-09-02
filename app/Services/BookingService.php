@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\SendBookingNotification;
+use App\Models\AvailabilitySlot;
 use App\Models\Booking;
 use App\Models\BookingStatusHistory;
 use Illuminate\Support\Facades\DB;
@@ -10,18 +11,34 @@ use Illuminate\Validation\ValidationException;
 
 class BookingService
 {
-    /**
-     * Client requests a booking. Does NOT lock a slot yet — that only
-     * happens on acceptance, since this is a request-based (not instant-book) flow.
-     */
-    public function request(array $data, int $clientId): Booking
+    public function request(int $availabilitySlotId, array $data, int $clientId): Booking
     {
-        return DB::transaction(function () use ($data, $clientId) {
+        return DB::transaction(function () use ($availabilitySlotId, $data, $clientId) {
+            $slot = AvailabilitySlot::where('id', $availabilitySlotId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($slot->is_booked) {
+                throw ValidationException::withMessages([
+                    'availability_slot_id' => 'That slot was just taken — please pick another.',
+                ]);
+            }
+
             $booking = Booking::create([
                 ...$data,
                 'client_id' => $clientId,
+                'availability_slot_id' => $slot->id,
+                'requested_date' => $slot->date,
+                'requested_time' => $slot->start_time,
                 'status' => 'requested',
+                // Snapshot the helper's rate at the moment of booking — not
+                // a live pointer to their profile. If they change their
+                // hourly_rate later, past bookings should still reflect
+                // what was actually agreed at the time.
+                'agreed_price' => $slot->helperProfile->hourly_rate,
             ]);
+
+            $slot->update(['is_booked' => true]);
 
             $this->logStatus($booking, 'requested', $clientId, null);
 
@@ -31,10 +48,6 @@ class BookingService
         });
     }
 
-    /**
-     * Any status transition goes through here so the rules and the
-     * audit trail can never be bypassed by a controller shortcut.
-     */
     public function transition(Booking $booking, string $newStatus, int $actorId, ?string $note = null): Booking
     {
         if (! $booking->canTransitionTo($newStatus)) {
@@ -46,6 +59,10 @@ class BookingService
         return DB::transaction(function () use ($booking, $newStatus, $actorId, $note) {
             $booking->update(['status' => $newStatus]);
             $this->logStatus($booking, $newStatus, $actorId, $note);
+
+            if (in_array($newStatus, ['declined', 'cancelled']) && $booking->availability_slot_id) {
+                $booking->availabilitySlot?->update(['is_booked' => false]);
+            }
 
             SendBookingNotification::dispatch($booking, $newStatus);
 

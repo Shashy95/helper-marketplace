@@ -8,14 +8,13 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-#[Layout('components.layouts.app')]
+#[Layout('components.layouts.dashboard')]
 class BookingRequestForm extends Component
 {
     public HelperProfile $helperProfile;
-
     public int $serviceCategoryId;
-    public string $requestedDate = '';
-    public string $requestedTime = '';
+
+    public ?int $availabilitySlotId = null;
     public ?float $latitude = null;
     public ?float $longitude = null;
     public string $addressNote = '';
@@ -31,28 +30,35 @@ class BookingRequestForm extends Component
     public function submit(BookingService $bookings): void
     {
         $data = $this->validate([
-            'requestedDate' => 'required|date|after_or_equal:today',
-            'requestedTime' => 'required|date_format:H:i',
+            'availabilitySlotId' => 'required|exists:availability_slots,id',
             'latitude' => 'required|numeric|between:-90,90',
             'longitude' => 'required|numeric|between:-180,180',
             'addressNote' => 'nullable|string|max:500',
         ]);
 
-        $bookings->request([
-            'helper_profile_id' => $this->helperProfile->id,
-            'service_category_id' => $this->serviceCategoryId,
-            'requested_date' => $data['requestedDate'],
-            'requested_time' => $data['requestedTime'],
-            'latitude' => $data['latitude'],
-            'longitude' => $data['longitude'],
-            'address_note' => $data['addressNote'],
-        ], Auth::id());
+        $bookings->request(
+            $data['availabilitySlotId'],
+            [
+                'helper_profile_id' => $this->helperProfile->id,
+                'service_category_id' => $this->serviceCategoryId,
+                'latitude' => $data['latitude'],
+                'longitude' => $data['longitude'],
+                'address_note' => $data['addressNote'],
+            ],
+            Auth::id()
+        );
 
         $this->submitted = true;
     }
 
     public function render()
     {
-        return view('livewire.booking-request-form');
+        return view('livewire.booking-request-form', [
+            'openSlots' => $this->helperProfile->availabilitySlots()
+                ->where('is_booked', false)
+                ->where('date', '>=', now()->toDateString())
+                ->orderBy('date')->orderBy('start_time')
+                ->get(),
+        ]);
     }
 }

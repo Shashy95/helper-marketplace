@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class BookingStatusHistory extends Model
 {
     public const UPDATED_AT = null;
+    protected $table = 'booking_status_history';
 
     protected $fillable = ['booking_id', 'status', 'changed_by', 'note'];
 

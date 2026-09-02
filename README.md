@@ -130,6 +130,44 @@ registration needed. The layout uses Tailwind classes — either run
 `npm install -D tailwindcss` and wire it into `resources/css/app.css`,
 or swap the classes for plain CSS if you want to skip that setup for now.
 
+
+
+# Availability enforcement — what changed
+
+## New
+- `database/migrations/2025_01_01_000009_add_availability_slot_id_to_bookings_table.php`
+  — links each booking to the exact slot it consumed
+- `app/Livewire/HelperAvailability.php` + `resources/views/livewire/helper-availability.blade.php`
+  — lets a helper add/remove open slots (a helper with zero slots is
+  technically active but unbookable — worth a banner nudge later)
+- `routes/availability-web.php` — add `/my-availability` into your auth group,
+  and probably link it from the nav (layout not touched here — add it yourself)
+
+## Changed
+- `app/Services/BookingService.php` — `request()` now takes an
+  `availabilitySlotId` instead of raw date/time. Locks the slot row
+  (`lockForUpdate`) inside the transaction so two clients can't book the
+  same slot in a race. `transition()` now releases the slot back to
+  `is_booked = false` when a booking is declined or cancelled, so it
+  becomes bookable again — but NOT on completion (that slot's time has
+  passed, no reason to reopen it).
+- `app/Models/Booking.php` — added `availabilitySlot()` relationship
+- `app/Livewire/BookingRequestForm.php` + its view — client now picks
+  from the helper's actual open slots via a dropdown, instead of typing
+  any date/time freehand
+
+## You'll need to update
+- **`app/Http/Controllers/BookingController.php`** (the REST API version) —
+  it still calls the old `BookingService::request()` signature with raw
+  `requested_date`/`requested_time`. Either update its validation to accept
+  `availability_slot_id` instead, or decide the API and web flows should
+  diverge (not recommended — keeps behavior inconsistent between them).
+- Run the new migration: `php artisan migrate`
+
+
+
+
+
 ### Not yet built
 
 - Login/register views — this scaffold assumes Laravel's default auth

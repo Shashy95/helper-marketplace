@@ -8,7 +8,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-#[Layout('components.layouts.app')]
+#[Layout('components.layouts.dashboard')]
 class VerificationQueue extends Component
 {
     use WithPagination;
@@ -43,8 +43,6 @@ class VerificationQueue extends Component
         $this->rejectionReason = '';
     }
 
-    // Same rule as the API controller: only flips a helper live once
-    // every one of their documents is approved.
     private function maybeActivateHelper(HelperProfile $profile): void
     {
         $allApproved = $profile->documents()->where('status', '!=', 'approved')->doesntExist();

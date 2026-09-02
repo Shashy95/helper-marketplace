@@ -8,8 +8,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Booking extends Model
 {
-    // Valid forward transitions. Enforced in BookingService, not here —
-    // keep the model dumb, put the rules in one place.
     public const TRANSITIONS = [
         'requested' => ['accepted', 'declined', 'cancelled'],
         'accepted' => ['in_progress', 'cancelled'],
@@ -20,9 +18,9 @@ class Booking extends Model
     ];
 
     protected $fillable = [
-        'client_id', 'helper_profile_id', 'service_category_id',
+        'client_id', 'helper_profile_id', 'availability_slot_id', 'service_category_id',
         'requested_date', 'requested_time', 'latitude', 'longitude',
-        'address_note', 'agreed_price', 'status',
+        'address_note', 'agreed_price', 'status', 'rating', 'review', 'rated_at',
     ];
 
     protected $casts = [
@@ -30,6 +28,7 @@ class Booking extends Model
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
         'agreed_price' => 'decimal:2',
+        'rated_at' => 'datetime',
     ];
 
     public function client(): BelongsTo
@@ -40,6 +39,11 @@ class Booking extends Model
     public function helperProfile(): BelongsTo
     {
         return $this->belongsTo(HelperProfile::class);
+    }
+
+    public function availabilitySlot(): BelongsTo
+    {
+        return $this->belongsTo(AvailabilitySlot::class);
     }
 
     public function serviceCategory(): BelongsTo
@@ -55,5 +59,13 @@ class Booking extends Model
     public function canTransitionTo(string $newStatus): bool
     {
         return in_array($newStatus, self::TRANSITIONS[$this->status] ?? [], true);
+    }
+
+    // Only a completed job the client hasn't rated yet is eligible.
+    public function canBeRatedBy(User $user): bool
+    {
+        return $this->client_id === $user->id
+            && $this->status === 'completed'
+            && $this->rating === null;
     }
 }

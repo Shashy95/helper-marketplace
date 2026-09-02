@@ -6,15 +6,17 @@ use App\Models\HelperProfile;
 use App\Models\ServiceCategory;
 use App\Models\VerificationDocument;
 use Illuminate\Support\Facades\Auth;
-use Livewire\Attributes\Validate;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Validate;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
-#[Layout('components.layouts.app')]
+#[Layout('components.layouts.dashboard')]
 class HelperOnboarding extends Component
 {
     use WithFileUploads;
+
+    public int $step = 1;
 
     #[Validate('nullable|string|max:1000')]
     public string $bio = '';
@@ -46,7 +48,23 @@ class HelperOnboarding extends Component
             $this->latitude = $this->profile->latitude;
             $this->longitude = $this->profile->longitude;
             $this->selectedServices = $this->profile->services()->pluck('service_category_id')->toArray();
+
+            // Returning helper with a profile already saved — land them on
+            // verification, since step 1 is presumably already done.
+            $this->step = 2;
         }
+    }
+
+    // Step nav is clickable, not strictly linear — but step 2 needs a
+    // saved profile to attach documents to, so block jumping there first.
+    public function goToStep(int $step): void
+    {
+        if ($step === 2 && ! $this->profile) {
+            $this->addError('step', 'Save your profile first.');
+            return;
+        }
+
+        $this->step = $step;
     }
 
     public function saveProfile(): void
@@ -72,6 +90,7 @@ class HelperOnboarding extends Component
             $this->profile->services()->create(['service_category_id' => $categoryId]);
         }
 
+        $this->step = 2;
         session()->flash('status', 'Profile saved. Now upload your ID to get verified.');
     }
 
